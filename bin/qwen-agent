@@ -47,6 +47,9 @@ fi
 model_available() {
   curl --fail --silent --max-time 2 \
     --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
+    "http://$SERVER_HOST:$SERVER_PORT/props" >/dev/null &&
+  curl --fail --silent --max-time 2 \
+    --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
     "http://$SERVER_HOST:$SERVER_PORT/v1/models" |
     grep -Fq "\"id\":\"$MODEL_ALIAS\""
 }
