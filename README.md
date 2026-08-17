@@ -120,7 +120,7 @@ The uncensored variant is abliterated and does not provide meaningful refusal be
 
 ## RunPod FP8 deployment
 
-The RunPod path uses the publisher's original gated block-FP8 checkpoint instead of the Mac GGUF conversion. The Pod runs pinned vLLM with MTP speculative decoding and a 32K context window. Qwen Code and repository tools remain on the local machine, while inference requests cross the network to RunPod over HTTPS.
+The RunPod path uses the publisher's original gated block-FP8 checkpoint instead of the Mac GGUF conversion. The Pod runs pinned vLLM with MTP speculative decoding. The default profile has a 131,072-token context and an optional 262,144-token profile preserves the model's native window. Qwen Code and repository tools remain on the local machine, while inference requests cross the network to RunPod over HTTPS.
 
 ```sh
 make install-runpod-client
@@ -129,7 +129,14 @@ cd /path/to/your/repository
 qwen-runpod-uncensored
 ```
 
-An A40 is the approximate $0.50/hour profile but is not expected to sustain 60 tok/s. An H100 SXM is the reliable 60+ tok/s profile at roughly $3/hour. Current GPU guidance, the pinned private template, secret setup, benchmarking, and security boundaries are documented in [runpod/README.md](runpod/README.md).
+For the native context window, create and configure the matching 262K profile on an 80 GB GPU:
+
+```sh
+make create-runpod-template RUNPOD_PROFILE=262k
+bin/configure-runpod https://POD_ID-8000.proxy.runpod.net 262k
+```
+
+An A40 is the approximate $0.50/hour 128K profile but is not expected to sustain 60 tok/s. The 262K profile requires an A100 80 GB or H100 80 GB. An H100 SXM is the reliable 60+ tok/s target on shorter generations at roughly $3/hour. Current GPU guidance, the pinned private templates, secret setup, benchmarking, and security boundaries are documented in [runpod/README.md](runpod/README.md).
 
 ## Installed components
 

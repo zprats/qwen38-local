@@ -6,13 +6,13 @@
     "openai": [
       {
         "id": "qwen3.8-27b-uncensored-research-local",
-        "name": "Qwen3.8-27B Uncensored RunPod FP8",
+        "name": "Qwen3.8-27B Uncensored RunPod FP8 262K",
         "envKey": "LOCAL_QWEN_API_KEY",
         "baseUrl": "$LOCAL_QWEN_BASE_URL",
         "generationConfig": {
           "timeout": 1800000,
           "maxRetries": 1,
-          "contextWindowSize": 131072,
+          "contextWindowSize": 262144,
           "samplingParams": {
             "temperature": 0.6,
             "top_p": 0.95,

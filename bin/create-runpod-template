@@ -2,6 +2,16 @@
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+CONTEXT_PROFILE=${1:-128k}
+
+case "$CONTEXT_PROFILE" in
+  128k) TEMPLATE_PATH="$ROOT/runpod/template.json" ;;
+  262k) TEMPLATE_PATH="$ROOT/runpod/template-262k.json" ;;
+  *)
+    printf 'Usage: bin/create-runpod-template [128k|262k]\n' >&2
+    exit 2
+    ;;
+esac
 
 restore_terminal() {
   stty echo 2>/dev/null || true
@@ -29,7 +39,7 @@ curl --fail-with-body --silent --show-error \
   --url https://rest.runpod.io/v1/templates \
   --header "Authorization: Bearer $RUNPOD_API_KEY" \
   --header 'Content-Type: application/json' \
-  --data-binary "@$ROOT/runpod/template.json" \
+  --data-binary "@$TEMPLATE_PATH" \
   --output "$RESPONSE"
 
 if command -v jq >/dev/null 2>&1; then

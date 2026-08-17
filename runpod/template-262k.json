@@ -17,7 +17,7 @@
     "--gpu-memory-utilization",
     "0.9",
     "--max-model-len",
-    "131072",
+    "262144",
     "--max-num-seqs",
     "1",
     "--generation-config",
@@ -47,11 +47,11 @@
   "imageName": "vllm/vllm-openai@sha256:f9de5cd9fa907fbf6dbba691eb7db095d48ad58ea283e3eba7142f9a91e186e8",
   "isPublic": false,
   "isServerless": false,
-  "name": "qwen38-uncensored-vllm-128k",
+  "name": "qwen38-uncensored-vllm-262k",
   "ports": [
     "8000/http"
   ],
-  "readme": "Private Qwen3.8-27B uncensored FP8 inference with MTP, API-key authentication, telemetry disabled, and a 128K context window.",
+  "readme": "Private Qwen3.8-27B uncensored FP8 inference with MTP, API-key authentication, telemetry disabled, and the native 262K context window.",
   "volumeInGb": 80,
   "volumeMountPath": "/workspace"
 }

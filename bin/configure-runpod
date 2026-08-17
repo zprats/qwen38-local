@@ -3,11 +3,20 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BASE_URL=${1:-}
+CONTEXT_PROFILE=${2:-128k}
 
 case "$BASE_URL" in
   https://*-8000.proxy.runpod.net) ;;
   *)
-    printf 'Usage: bin/configure-runpod https://POD_ID-8000.proxy.runpod.net\n' >&2
+    printf 'Usage: bin/configure-runpod https://POD_ID-8000.proxy.runpod.net [128k|262k]\n' >&2
+    exit 2
+    ;;
+esac
+
+case "$CONTEXT_PROFILE" in
+  128k|262k) ;;
+  *)
+    printf 'Context profile must be 128k or 262k.\n' >&2
     exit 2
     ;;
 esac
@@ -37,8 +46,8 @@ esac
 
 umask 077
 PARTIAL="$ROOT/.env.runpod.partial"
-printf 'LOCAL_QWEN_API_KEY=%s\nQWEN_RUNPOD_BASE_URL=%s\n' "$API_KEY" "$BASE_URL" >"$PARTIAL"
+printf 'LOCAL_QWEN_API_KEY=%s\nQWEN_RUNPOD_BASE_URL=%s\nQWEN_RUNPOD_CONTEXT_PROFILE=%s\n' "$API_KEY" "$BASE_URL" "$CONTEXT_PROFILE" >"$PARTIAL"
 mv "$PARTIAL" "$ROOT/.env.runpod"
 chmod 600 "$ROOT/.env.runpod"
 
-printf 'Configured qwen-runpod-uncensored for %s.\n' "$BASE_URL"
+printf 'Configured qwen-runpod-uncensored for %s with the %s context profile.\n' "$BASE_URL" "$CONTEXT_PROFILE"

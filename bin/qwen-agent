@@ -59,6 +59,17 @@ fi
 . "$ACTIVE_ENV_FILE"
 : "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
 
+if [ "$MODE" = runpod-research ]; then
+  case "${QWEN_RUNPOD_CONTEXT_PROFILE:-128k}" in
+    128k) SETTINGS_PATH="$ROOT/agent/settings-runpod.json" ;;
+    262k) SETTINGS_PATH="$ROOT/agent/settings-runpod-262k.json" ;;
+    *)
+      printf 'QWEN_RUNPOD_CONTEXT_PROFILE must be 128k or 262k.\n' >&2
+      exit 2
+      ;;
+  esac
+fi
+
 model_available() {
   curl --fail --silent --max-time 2 \
     --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \

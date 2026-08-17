@@ -4,16 +4,16 @@ This deployment serves the gated [`orcarouter/Qwen3.8-27B-Uncensored-FP8`](https
 
 ## Cost and speed
 
-The exact checkpoint occupies 30.9 GB before runtime and KV-cache overhead, so it requires at least 48 GB VRAM.
+The exact checkpoint occupies 30.9 GB before runtime and KV-cache overhead. The default 128K profile requires at least 48 GB VRAM. The native 262K profile requires an 80 GB GPU.
 
 | GPU | Approximate RunPod Pod price | Expected role |
 | --- | ---: | --- |
-| A40 48 GB | $0.44/hour | Budget profile, likely 15 to 30 tok/s |
-| RTX A6000 48 GB | $0.53/hour | Budget profile, likely 18 to 32 tok/s |
-| A100 80 GB | $1.39 to $1.49/hour | Balanced profile, roughly 35 to 60 tok/s |
-| H100 SXM 80 GB | $2.99/hour | Fast profile, target 60+ tok/s |
+| A40 48 GB | $0.44/hour | Budget 128K profile, likely 15 to 30 tok/s |
+| RTX A6000 48 GB | $0.53/hour | Budget 128K profile, likely 18 to 32 tok/s |
+| A100 80 GB | $1.39 to $1.49/hour | 128K or 262K, roughly 35 to 60 tok/s on shorter generations |
+| H100 SXM 80 GB | $2.99/hour | 128K or 262K, target 60+ tok/s on shorter generations |
 
-[RunPod prices](https://www.runpod.io/pricing) and speed ranges change with availability, context length, MTP acceptance, and host configuration. The repository includes a benchmark command because the 60 tok/s target cannot be guaranteed before measuring the allocated GPU. The A40 is the closest match to a $0.50/hour budget, but it is not a 60 tok/s configuration.
+[RunPod prices](https://www.runpod.io/pricing) and speed ranges change with availability, context length, MTP acceptance, and host configuration. The repository includes a benchmark command because the 60 tok/s target cannot be guaranteed before measuring the allocated GPU. The A40 is the closest match to a $0.50/hour budget and can serve the 128K profile, but it is not a 60 tok/s or dependable 262K configuration.
 
 ## 1. Create secrets
 
@@ -26,7 +26,9 @@ Do not put either value in this repository or directly in the Pod template.
 
 ## 2. Create the template
 
-Create a private [RunPod Pod template](https://docs.runpod.io/pods/templates/create-custom-template) using [`template.json`](template.json). The pinned image is vLLM `v0.24.0`, the version verified by the model publisher. Configure one HTTP port, `8000`, and retain the 80 GB persistent volume mounted at `/workspace`.
+Create a private [RunPod Pod template](https://docs.runpod.io/pods/templates/create-custom-template). The pinned image is vLLM `v0.24.0`, the version verified by the model publisher. Configure one HTTP port, `8000`, and retain the 80 GB persistent volume mounted at `/workspace`.
+
+Use the default 131,072-token profile on a 48 GB or 80 GB GPU:
 
 After creating the two RunPod secrets, the repository can create the private template through RunPod's API. The account API key is read without echo and is not stored:
 
@@ -34,9 +36,15 @@ After creating the two RunPod secrets, the repository can create the private tem
 make create-runpod-template
 ```
 
+Use the native 262,144-token profile only on an A100 80 GB or H100 80 GB:
+
+```sh
+make create-runpod-template RUNPOD_PROFILE=262k
+```
+
 The first start downloads about 31 GB from Hugging Face. The persistent volume keeps the Hugging Face cache across Pod restarts. Wait for the Pod logs to report that the OpenAI-compatible server is listening on port 8000.
 
-Deploy the template with an A40 or RTX A6000 for the budget profile. Use an A100 80 GB or H100 SXM 80 GB when speed matters more than hourly cost.
+Deploy the 128K template with an A40 or RTX A6000 for the budget profile. Use an A100 80 GB or H100 SXM 80 GB for the 262K template. The H100 is the appropriate choice when the 60 tok/s target matters more than hourly cost.
 
 ## 3. Install the local client
 
@@ -52,6 +60,12 @@ Get the Pod ID from RunPod and configure the HTTPS endpoint. The command prompts
 
 ```sh
 bin/configure-runpod https://POD_ID-8000.proxy.runpod.net
+```
+
+For a Pod created from the 262K template, select the matching local profile:
+
+```sh
+bin/configure-runpod https://POD_ID-8000.proxy.runpod.net 262k
 ```
 
 Run the agent from any authorized repository:
@@ -74,5 +88,5 @@ bin/runpod-benchmark
 - Qwen Code talks only to a localhost proxy. That proxy accepts only loopback clients and `/v1/` model routes, injects the API key, and rejects general outbound proxy traffic.
 - Qwen, Hugging Face, and vLLM telemetry are disabled. vLLM request and access logging are disabled.
 - RunPod remains the infrastructure provider and can access workload data at the infrastructure layer. Do not send production secrets, credentials, customer data, or regulated data without an approved cloud-data path.
-- The RunPod HTTP proxy has a 100-second connection limit. The 32K context reduces the risk, but unusually slow prefills can still fail with a proxy timeout.
+- The RunPod HTTP proxy has a 100-second connection limit. Large 128K or 262K prefills can exceed it even when the GPU has enough memory. Context capacity does not guarantee that a near-full prompt can complete through this endpoint.
 - Stop the Pod when it is idle. Persistent volume storage continues to incur storage charges.
