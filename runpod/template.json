@@ -3,7 +3,6 @@
   "containerDiskInGb": 30,
   "dockerEntrypoint": [],
   "dockerStartCmd": [
-    "--model",
     "orcarouter/Qwen3.8-27B-Uncensored-FP8",
     "--revision",
     "9228df5c6c9c509e1019f83b4e085cf643118bac",
@@ -29,7 +28,6 @@
     "--tool-call-parser",
     "qwen3_coder",
     "--disable-fastapi-docs",
-    "--disable-log-requests",
     "--disable-uvicorn-access-log",
     "--host",
     "0.0.0.0",
