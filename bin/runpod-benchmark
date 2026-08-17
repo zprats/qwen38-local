@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+if [ ! -f "$ROOT/.env.runpod" ]; then
+  printf 'Run bin/configure-runpod first.\n' >&2
+  exit 1
+fi
+
+. "$ROOT/.env.runpod"
+export LOCAL_QWEN_API_KEY QWEN_RUNPOD_BASE_URL
+exec node "$ROOT/runpod/benchmark.mjs"

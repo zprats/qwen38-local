@@ -1,0 +1,78 @@
+# RunPod deployment
+
+This deployment serves the gated [`orcarouter/Qwen3.8-27B-Uncensored-FP8`](https://huggingface.co/orcarouter/Qwen3.8-27B-Uncensored-FP8) checkpoint with vLLM and connects the local Qwen Code harness through RunPod's HTTPS proxy. Repository tools remain on the local machine. Model prompts and tool results included in the conversation are sent to the Pod.
+
+## Cost and speed
+
+The exact checkpoint occupies 30.9 GB before runtime and KV-cache overhead, so it requires at least 48 GB VRAM.
+
+| GPU | Approximate RunPod Pod price | Expected role |
+| --- | ---: | --- |
+| A40 48 GB | $0.44/hour | Budget profile, likely 15 to 30 tok/s |
+| RTX A6000 48 GB | $0.53/hour | Budget profile, likely 18 to 32 tok/s |
+| A100 80 GB | $1.39 to $1.49/hour | Balanced profile, roughly 35 to 60 tok/s |
+| H100 SXM 80 GB | $2.99/hour | Fast profile, target 60+ tok/s |
+
+[RunPod prices](https://www.runpod.io/pricing) and speed ranges change with availability, context length, MTP acceptance, and host configuration. The repository includes a benchmark command because the 60 tok/s target cannot be guaranteed before measuring the allocated GPU. The A40 is the closest match to a $0.50/hour budget, but it is not a 60 tok/s configuration.
+
+## 1. Create secrets
+
+Create two RunPod secrets in the RunPod console:
+
+- `hf_token`: a read-only Hugging Face token with access to the gated model.
+- `qwen_vllm_api_key`: a random API key generated locally with `openssl rand -hex 32`.
+
+Do not put either value in this repository or directly in the Pod template.
+
+## 2. Create the template
+
+Create a private [RunPod Pod template](https://docs.runpod.io/pods/templates/create-custom-template) using [`template.json`](template.json). The pinned image is vLLM `v0.24.0`, the version verified by the model publisher. Configure one HTTP port, `8000`, and retain the 80 GB persistent volume mounted at `/workspace`.
+
+After creating the two RunPod secrets, the repository can create the private template through RunPod's API. The account API key is read without echo and is not stored:
+
+```sh
+make create-runpod-template
+```
+
+The first start downloads about 31 GB from Hugging Face. The persistent volume keeps the Hugging Face cache across Pod restarts. Wait for the Pod logs to report that the OpenAI-compatible server is listening on port 8000.
+
+Deploy the template with an A40 or RTX A6000 for the budget profile. Use an A100 80 GB or H100 SXM 80 GB when speed matters more than hourly cost.
+
+## 3. Install the local client
+
+The client-only installation does not download local model weights:
+
+```sh
+corepack enable
+corepack prepare pnpm@10.30.2 --activate
+make install-runpod-client
+```
+
+Get the Pod ID from RunPod and configure the HTTPS endpoint. The command prompts for the same value stored in `qwen_vllm_api_key` and saves it to the ignored `.env.runpod` file with mode `0600`.
+
+```sh
+bin/configure-runpod https://POD_ID-8000.proxy.runpod.net
+```
+
+Run the agent from any authorized repository:
+
+```sh
+cd /path/to/repository
+qwen-runpod-uncensored
+```
+
+Measure end-to-end speed:
+
+```sh
+bin/runpod-benchmark
+```
+
+## Security boundaries
+
+- vLLM `v0.24.0` is pinned because it contains the [API-authentication bypass fix](https://github.com/vllm-project/vllm/security/advisories/GHSA-94f4-hr76-p5j6) released in vLLM `0.22.0`.
+- The endpoint is publicly routable through RunPod's HTTPS proxy, so the vLLM API key is mandatory.
+- Qwen Code talks only to a localhost proxy. That proxy accepts only loopback clients and `/v1/` model routes, injects the API key, and rejects general outbound proxy traffic.
+- Qwen, Hugging Face, and vLLM telemetry are disabled. vLLM request and access logging are disabled.
+- RunPod remains the infrastructure provider and can access workload data at the infrastructure layer. Do not send production secrets, credentials, customer data, or regulated data without an approved cloud-data path.
+- The RunPod HTTP proxy has a 100-second connection limit. The 32K context reduces the risk, but unusually slow prefills can still fail with a proxy timeout.
+- Stop the Pod when it is idle. Persistent volume storage continues to incur storage charges.

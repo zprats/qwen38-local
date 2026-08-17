@@ -1,0 +1,44 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+BASE_URL=${1:-}
+
+case "$BASE_URL" in
+  https://*-8000.proxy.runpod.net) ;;
+  *)
+    printf 'Usage: bin/configure-runpod https://POD_ID-8000.proxy.runpod.net\n' >&2
+    exit 2
+    ;;
+esac
+
+restore_terminal() {
+  stty echo 2>/dev/null || true
+}
+
+trap restore_terminal EXIT HUP INT TERM
+printf 'RunPod vLLM API key: ' >&2
+stty -echo
+IFS= read -r API_KEY
+stty echo
+printf '\n' >&2
+trap - EXIT HUP INT TERM
+
+if [ "${#API_KEY}" -lt 32 ]; then
+  printf 'API key must be at least 32 characters.\n' >&2
+  exit 2
+fi
+case "$API_KEY" in
+  *[!A-Za-z0-9._-]*)
+    printf 'API key may contain only letters, numbers, dots, underscores, and hyphens.\n' >&2
+    exit 2
+    ;;
+esac
+
+umask 077
+PARTIAL="$ROOT/.env.runpod.partial"
+printf 'LOCAL_QWEN_API_KEY=%s\nQWEN_RUNPOD_BASE_URL=%s\n' "$API_KEY" "$BASE_URL" >"$PARTIAL"
+mv "$PARTIAL" "$ROOT/.env.runpod"
+chmod 600 "$ROOT/.env.runpod"
+
+printf 'Configured qwen-runpod-uncensored for %s.\n' "$BASE_URL"

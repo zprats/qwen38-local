@@ -18,17 +18,12 @@ done
 ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT")/.." && pwd)
 . "$ROOT/config.sh"
 
-if [ ! -f "$ENV_FILE" ]; then
-  printf 'Run make install before using qwen-local.\n' >&2
-  exit 1
-fi
-. "$ENV_FILE"
-: "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
-
 MODE=${QWEN_LOCAL_MODE:-default}
 API_BASE_URL="http://$SERVER_HOST:$SERVER_PORT/v1"
 MODEL_ALIAS=$SERVER_ALIAS
 MODEL_PROFILE=base
+SETTINGS_PATH="$ROOT/agent/settings.json"
+ACTIVE_ENV_FILE=$ENV_FILE
 COMMAND=$(basename -- "$0")
 case "$COMMAND" in
   qwen-local-plan) MODE=plan ;;
@@ -38,11 +33,31 @@ case "$COMMAND" in
     MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
     MODEL_PROFILE=research
     ;;
+  qwen-runpod-uncensored)
+    MODE=runpod-research
+    MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
+    ;;
 esac
 if [ "$MODE" = research ]; then
   MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
   MODEL_PROFILE=research
 fi
+if [ "$MODE" = runpod-research ]; then
+  ACTIVE_ENV_FILE="$ROOT/.env.runpod"
+  MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
+  SETTINGS_PATH="$ROOT/agent/settings-runpod.json"
+fi
+
+if [ ! -f "$ACTIVE_ENV_FILE" ]; then
+  if [ "$MODE" = runpod-research ]; then
+    printf 'Run make install-runpod-client and bin/configure-runpod before using qwen-runpod-uncensored.\n' >&2
+  else
+    printf 'Run make install before using qwen-local.\n' >&2
+  fi
+  exit 1
+fi
+. "$ACTIVE_ENV_FILE"
+: "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
 
 model_available() {
   curl --fail --silent --max-time 2 \
@@ -54,7 +69,7 @@ model_available() {
     grep -Fq "\"id\":\"$MODEL_ALIAS\""
 }
 
-if ! model_available; then
+if [ "$MODE" != runpod-research ] && ! model_available; then
   "$ROOT/bin/start-model" "$MODEL_PROFILE" >/dev/null
 fi
 
@@ -88,6 +103,18 @@ $(cat "$ROOT/agent/incident-prompt.md")"
 
 $(cat "$ROOT/agent/research-prompt.md")"
     ;;
+  runpod-research)
+    : "${QWEN_RUNPOD_BASE_URL:?QWEN_RUNPOD_BASE_URL must be set}"
+    SEATBELT_PROFILE=permissive-proxied
+    QWEN_SANDBOX_PROXY_COMMAND="exec node '$ROOT/agent/runpod-proxy.mjs'"
+    API_BASE_URL=http://localhost:8877/v1
+    PATH="$ROOT/bin:$PATH"
+    unset NO_PROXY no_proxy
+    export PATH SEATBELT_PROFILE QWEN_SANDBOX_PROXY_COMMAND QWEN_RUNPOD_BASE_URL
+    SYSTEM_PROMPT="$SYSTEM_PROMPT
+
+$(cat "$ROOT/agent/runpod-research-prompt.md")"
+    ;;
   *)
     printf 'Unknown QWEN_LOCAL_MODE: %s\n' "$MODE" >&2
     exit 1
@@ -97,14 +124,15 @@ esac
 LOCAL_QWEN_BASE_URL=$API_BASE_URL
 OPENAI_API_KEY=$LOCAL_QWEN_API_KEY
 OPENAI_BASE_URL=$API_BASE_URL
-QWEN_CODE_SYSTEM_SETTINGS_PATH="$ROOT/agent/settings.json"
+QWEN_CODE_SYSTEM_SETTINGS_PATH=$SETTINGS_PATH
 QWEN_SANDBOX=sandbox-exec
 QWEN_USAGE_STATISTICS_ENABLED=false
 QWEN_TELEMETRY_ENABLED=false
+QWEN_STREAM_IDLE_TIMEOUT_MS=0
 OTEL_SDK_DISABLED=true
 export LOCAL_QWEN_API_KEY LOCAL_QWEN_BASE_URL OPENAI_API_KEY OPENAI_BASE_URL
 export QWEN_CODE_SYSTEM_SETTINGS_PATH QWEN_SANDBOX QWEN_USAGE_STATISTICS_ENABLED
-export QWEN_TELEMETRY_ENABLED OTEL_SDK_DISABLED
+export QWEN_TELEMETRY_ENABLED QWEN_STREAM_IDLE_TIMEOUT_MS OTEL_SDK_DISABLED
 
 exec "$ROOT/node_modules/.bin/qwen" \
   --auth-type openai \

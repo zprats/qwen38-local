@@ -11,6 +11,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 [ "$(plutil -extract outboundCorrelation.propagateTraceContext raw "$ROOT/agent/settings.json")" = false ]
 grep -q '^QWEN_USAGE_STATISTICS_ENABLED=false$' "$ROOT/bin/qwen-agent"
 grep -q '^QWEN_TELEMETRY_ENABLED=false$' "$ROOT/bin/qwen-agent"
+grep -q '^QWEN_STREAM_IDLE_TIMEOUT_MS=0$' "$ROOT/bin/qwen-agent"
 grep -q '^OTEL_SDK_DISABLED=true$' "$ROOT/bin/qwen-agent"
 grep -q '127.0.0.1:${WEBUI_PORT:-2501}:8080' "$ROOT/compose.yaml"
 grep -q 'ANONYMIZED_TELEMETRY: "false"' "$ROOT/compose.yaml"

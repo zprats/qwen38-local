@@ -1,8 +1,10 @@
 # Qwen3.8-27B Local Web UI
 
-Local Qwen3.8-27B inference on Apple Silicon through llama.cpp Metal, with Open WebUI as the browser interface.
+Qwen3.8-27B inference on Apple Silicon through llama.cpp Metal, plus an optional RunPod FP8 deployment for the gated uncensored research model.
 
 ## Requirements
+
+These requirements apply to local inference. The RunPod client needs only Node.js, pnpm, and a RunPod account.
 
 - Apple Silicon Mac with 48 GB RAM recommended
 - Node.js 24.18.0
@@ -93,6 +95,7 @@ The installed commands are:
 | `qwen-local-plan` | Read-only planning and investigation |
 | `qwen-local-incident` | Incident workflow with tool network access disabled |
 | `qwen-local-uncensored` | Uncensored research model with full repository tools, approval prompts, and external network access disabled |
+| `qwen-runpod-uncensored` | Local repository tools with uncensored FP8 inference on an authenticated RunPod |
 
 The agent uses a 128K server context and caps each model response at 16K tokens. Session turns, wall time, and aggregate tool calls are not artificially capped. Subagents are available to depth five, desktop automation is disabled, and background managed-memory calls are disabled because the server has one inference slot.
 
@@ -115,6 +118,19 @@ The exact pinned FP8 revision is retained under the ignored `runtime` directory 
 
 The uncensored variant is abliterated and does not provide meaningful refusal behavior. Open WebUI gives it chat and image inference only. `qwen-local-uncensored` adds repository tools with normal approval prompts while denying tool traffic to external networks. It can still read and modify files in the selected repository, and local chat history, tool output, model logs, and Qwen Code sessions persist on disk. Use sanitized fixtures and a disposable branch or worktree.
 
+## RunPod FP8 deployment
+
+The RunPod path uses the publisher's original gated block-FP8 checkpoint instead of the Mac GGUF conversion. The Pod runs pinned vLLM with MTP speculative decoding and a 32K context window. Qwen Code and repository tools remain on the local machine, while inference requests cross the network to RunPod over HTTPS.
+
+```sh
+make install-runpod-client
+bin/configure-runpod https://POD_ID-8000.proxy.runpod.net
+cd /path/to/your/repository
+qwen-runpod-uncensored
+```
+
+An A40 is the approximate $0.50/hour profile but is not expected to sustain 60 tok/s. An H100 SXM is the reliable 60+ tok/s profile at roughly $3/hour. Current GPU guidance, the pinned private template, secret setup, benchmarking, and security boundaries are documented in [runpod/README.md](runpod/README.md).
+
 ## Installed components
 
 | Component | Pin |
@@ -130,6 +146,7 @@ The uncensored variant is abliterated and does not provide meaningful refusal be
 | Open WebUI | `v0.9.5`, arm64 image digest `sha256:e78f8d3672b1f32867cedc90a3f3b31ee53a7b5cf027618c944be88bae9d67f4` |
 | Qwen Code | `0.21.6` |
 | pnpm | `10.30.2` |
+| RunPod vLLM | `v0.24.0`, linux/amd64 image digest `sha256:f9de5cd9fa907fbf6dbba691eb7db095d48ad58ea283e3eba7142f9a91e186e8` |
 
 The router runs as a per-user `launchd` service with restart-on-failure behavior, a 128K context window, full Metal offload, Q8 KV cache, native image input, preserved thinking output, and one resident model. The research profile also uses its separate MTP head for speculative decoding. Its converted serving artifacts use about 25 GB of disk and about 30 GB RSS when loaded; the pinned original FP8 source uses another 31 GB of disk.
 
