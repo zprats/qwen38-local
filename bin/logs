@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+case "${1:-webui}" in
+  model)
+    tail -f "$SERVER_LOG"
+    ;;
+  webui)
+    podman logs -f qwen38-webui
+    ;;
+  *)
+    printf 'Usage: %s [model|webui]\n' "$0" >&2
+    exit 2
+    ;;
+esac
+

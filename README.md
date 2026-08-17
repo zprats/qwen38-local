@@ -1,0 +1,138 @@
+# Qwen3.8-27B Local Web UI
+
+Local Qwen3.8-27B inference on Apple Silicon through llama.cpp Metal, with Open WebUI as the browser interface.
+
+## Requirements
+
+- Apple Silicon Mac with 48 GB RAM recommended
+- Node.js 24.18.0
+- pnpm 10.30.2
+- About 30 GB free for the base installation
+- Podman only for the browser UI
+
+Install the pinned package manager and optional UI runtime:
+
+```sh
+corepack enable
+corepack prepare pnpm@10.30.2 --activate
+brew install podman
+podman machine init
+podman machine start
+```
+
+Skip the Podman commands when only the coding agent is needed.
+
+## Install the base model
+
+```sh
+make install
+make install-agent
+make start-model
+```
+
+The installer downloads pinned llama.cpp binaries, the Q6_K model, and the vision projector. Every downloaded artifact is SHA-256 verified. It also generates an ignored per-install API key and WebUI signing key in `.env` with mode `0600`.
+
+Run Qwen Code from any repository:
+
+```sh
+cd /path/to/your/repository
+qwen-local
+```
+
+The launcher starts the model server automatically. Useful session commands:
+
+```sh
+qwen-local --continue
+qwen-local --resume
+qwen-local -i "Inspect the failing test, explain the cause, and wait before editing."
+qwen-local-plan -p "Review this branch against its merge base."
+```
+
+## Browser UI
+
+```sh
+make start
+open http://localhost:2501
+```
+
+The first Open WebUI account created is the local administrator. The UI and model API listen on localhost only.
+
+```sh
+make status
+make security-check
+make model-logs
+make logs
+make stop
+```
+
+## Security defaults
+
+The launcher enforces these settings:
+
+- Model API bound to `127.0.0.1:8001`
+- Open WebUI bound to `127.0.0.1:2501`
+- Random per-install API and signing keys
+- Localhost-only CORS
+- Qwen usage statistics disabled
+- Qwen telemetry and OpenTelemetry SDK disabled
+- Trace-context propagation disabled
+- Automatic updates disabled
+- Managed memory, team-memory sync, and automatic skills disabled
+- Open WebUI analytics, telemetry, and version checks disabled
+- Git co-author attribution disabled
+
+`qwen-local` retains approved network-capable coding tools. Use `qwen-local-incident` when tool processes must have no external network access. Chat history, tool output, Qwen Code sessions, and server logs remain on the local machine.
+
+## Coding commands
+
+The installed commands are:
+
+| Command | Behavior |
+| --- | --- |
+| `qwen-local` | Interactive coding agent; asks before risky actions |
+| `qwen-local-plan` | Read-only planning and investigation |
+| `qwen-local-incident` | Incident workflow with tool network access disabled |
+| `qwen-local-uncensored` | Uncensored research model with full repository tools, approval prompts, and external network access disabled |
+
+The agent uses a 128K server context and caps each model response at 16K tokens. Session turns, wall time, and aggregate tool calls are not artificially capped. Subagents are available to depth five, desktop automation is disabled, and background managed-memory calls are disabled because the server has one inference slot.
+
+Do not use `--yolo` against production repositories or during incident validation. The regular command is the right default for implementation; use plan mode for investigation and incident mode for sanitized payment, booking, or security evidence. Copy-paste workflows are in [examples](examples).
+
+This supplies the tool harness found in Codex and Claude Code, but it does not make a local quantized 27B model equally reliable on long autonomous changes. Keep changes scoped, inspect diffs, and require test evidence before accepting its conclusion.
+
+## Optional gated research model
+
+This profile requires access to `orcarouter/Qwen3.8-27B-Uncensored-FP8` and an authenticated Hugging Face CLI:
+
+```sh
+hf auth login
+make install-uncensored
+make start-research
+qwen-local-uncensored
+```
+
+The exact pinned FP8 revision is retained under the ignored `runtime` directory and converted into Q6_K for Metal. The research router exposes both models but keeps only one resident at a time.
+
+The uncensored variant is abliterated and does not provide meaningful refusal behavior. Open WebUI gives it chat and image inference only. `qwen-local-uncensored` adds repository tools with normal approval prompts while denying tool traffic to external networks. It can still read and modify files in the selected repository, and local chat history, tool output, model logs, and Qwen Code sessions persist on disk. Use sanitized fixtures and a disposable branch or worktree.
+
+## Installed components
+
+| Component | Pin |
+| --- | --- |
+| Model | `unsloth/Qwen3.8-27B-GGUF`, `Q6_K`, SHA-256 `562fbf760503008f118e5df38de5b3e97992d1f693f475815631198547486727` |
+| Vision projector | `mmproj-F16.gguf`, SHA-256 `cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e` |
+| Research source | `orcarouter/Qwen3.8-27B-Uncensored-FP8`, revision `9228df5c6c9c509e1019f83b4e085cf643118bac` |
+| Research model | Local `Q6_K`, SHA-256 `e2fecab60f4b85e5c369e69801e329e8cc32863c14864b0219775ddb8b93cc57` |
+| Research vision projector | Local `F16`, SHA-256 `8c4304a2e39efe8433b6a0f8b3bbfad47a3a1b0bed445614685b2b19d760b87c` |
+| Research MTP draft | Local `Q8_0`, SHA-256 `c3a466439660a5d82c4a669c39943869ece2b5e668b5e3d1381f125acff2a310` |
+| llama.cpp | `b10434`, SHA-256 `3410f386636f72fbdf7f7389173dd569cd46f43dfab873d5b848d2f7e468c310` |
+| llama.cpp converter | commit `7e4c0a96880dae4fc4268ad441f8a6446bd5460a`, archive SHA-256 `8759ab3d3a92d86ba3ba24fab7e6adde08eaf2f941e6c79118373e4f41e0af8c` |
+| Open WebUI | `v0.9.5`, arm64 image digest `sha256:e78f8d3672b1f32867cedc90a3f3b31ee53a7b5cf027618c944be88bae9d67f4` |
+| Qwen Code | `0.21.6` |
+| pnpm | `10.30.2` |
+
+The router runs as a per-user `launchd` service with restart-on-failure behavior, a 128K context window, full Metal offload, Q8 KV cache, native image input, preserved thinking output, and one resident model. The research profile also uses its separate MTP head for speculative decoding. Its converted serving artifacts use about 25 GB of disk and about 30 GB RSS when loaded; the pinned original FP8 source uses another 31 GB of disk.
+
+The upstream research model has a native 262K context, but this setup deliberately uses 128K to fit the 48 GB machine with Metal offload and the draft model. The publisher's block-FP8 runtime targets CUDA/vLLM; the Mac serves a locally converted Q6_K artifact, not the original FP8 tensors.
+
+Qwen's published comparisons put the unquantized model in the same broad capability class as Opus 4.6 Max, but benchmark results vary by task and harness. Local Q6 quantization and a 128K context limit are practical compromises for a 48 GB Mac and may reduce quality relative to Qwen's reference setup.

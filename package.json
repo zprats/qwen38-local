@@ -1,0 +1,17 @@
+{
+  "name": "qwen38-local-harness",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "dependencies": {
+    "@qwen-code/qwen-code": "0.21.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "sharp": "0.35.0"
+    }
+  }
+}

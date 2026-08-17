@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+preset=${1:-$MODELS_PRESET}
+[ -f "$preset" ]
+[ -f "$ENV_FILE" ]
+. "$ENV_FILE"
+: "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
+
+mkdir -p "$(dirname -- "$SERVER_PLIST")"
+partial="$SERVER_PLIST.partial"
+cp "$SERVER_PLIST_TEMPLATE" "$partial"
+/usr/bin/plutil -replace ProgramArguments.0 -string "$LLAMA_CPP_DIR/llama-server" "$partial"
+/usr/bin/plutil -replace ProgramArguments.2 -string "$preset" "$partial"
+/usr/bin/plutil -replace ProgramArguments.6 -string "$LOCAL_QWEN_API_KEY" "$partial"
+/usr/bin/plutil -replace WorkingDirectory -string "$LLAMA_CPP_DIR" "$partial"
+/usr/bin/plutil -replace StandardOutPath -string "$SERVER_LOG" "$partial"
+/usr/bin/plutil -replace StandardErrorPath -string "$SERVER_LOG" "$partial"
+/usr/bin/plutil -lint "$partial" >/dev/null
+mv "$partial" "$SERVER_PLIST"

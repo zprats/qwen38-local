@@ -1,0 +1,105 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+mkdir -p "$ROOT/models" "$ROOT/runtime/downloads"
+
+if ! command -v hf >/dev/null 2>&1; then
+  printf 'The Hugging Face hf CLI is required.\n' >&2
+  exit 1
+fi
+
+if ! hf auth whoami >/dev/null 2>&1; then
+  printf 'Authenticate with hf auth login before installing the gated model.\n' >&2
+  exit 1
+fi
+
+verify() {
+  expected=$1
+  file=$2
+  [ -f "$file" ] && printf '%s  %s\n' "$expected" "$file" | shasum -a 256 -c - >/dev/null 2>&1
+}
+
+download() {
+  url=$1
+  destination=$2
+  expected=$3
+
+  if verify "$expected" "$destination"; then
+    return
+  fi
+
+  partial="$destination.partial"
+  curl --fail --location --retry 5 --retry-all-errors --continue-at - --output "$partial" "$url"
+  printf '%s  %s\n' "$expected" "$partial" | shasum -a 256 -c -
+  mv "$partial" "$destination"
+}
+
+source_archive="$ROOT/runtime/downloads/$LLAMA_CPP_SOURCE_ARCHIVE"
+download "$LLAMA_CPP_SOURCE_URL" "$source_archive" "$LLAMA_CPP_SOURCE_SHA256"
+
+if [ ! -f "$LLAMA_CPP_SOURCE_DIR/convert_hf_to_gguf.py" ]; then
+  rm -rf "$LLAMA_CPP_SOURCE_DIR"
+  tar -xzf "$source_archive" -C "$ROOT/runtime"
+fi
+
+hf_python="$(dirname -- "$(command -v hf)")/python"
+if "$hf_python" -c 'import numpy, safetensors, sentencepiece, torch, transformers' >/dev/null 2>&1; then
+  converter_python=$hf_python
+else
+  if ! "$CONVERSION_VENV/bin/python" -c 'import numpy, safetensors, sentencepiece, torch, transformers' >/dev/null 2>&1; then
+    rm -rf "$CONVERSION_VENV"
+    python3 -m venv "$CONVERSION_VENV"
+    PIP_DEFAULT_TIMEOUT=120 PIP_DISABLE_PIP_VERSION_CHECK=1 "$CONVERSION_VENV/bin/python" -m pip install --requirement "$ROOT/conversion-requirements.txt"
+  fi
+  converter_python="$CONVERSION_VENV/bin/python"
+fi
+
+hf download "$UNCENSORED_MODEL_REPOSITORY" \
+  --revision "$UNCENSORED_MODEL_REVISION" \
+  --local-dir "$UNCENSORED_SOURCE_DIR"
+
+converter="$LLAMA_CPP_SOURCE_DIR/convert_hf_to_gguf.py"
+
+if ! verify "$UNCENSORED_MODEL_SHA256" "$UNCENSORED_MODEL_PATH"; then
+  if [ ! -s "$UNCENSORED_BF16_PATH" ]; then
+    "$converter_python" "$converter" \
+      "$UNCENSORED_SOURCE_DIR" \
+      --outfile "$UNCENSORED_BF16_PATH.partial" \
+      --outtype bf16 \
+      --no-mtp \
+      --use-temp-file
+    mv "$UNCENSORED_BF16_PATH.partial" "$UNCENSORED_BF16_PATH"
+  fi
+  "$LLAMA_CPP_DIR/llama-quantize" \
+    "$UNCENSORED_BF16_PATH" \
+    "$UNCENSORED_MODEL_PATH.partial" \
+    Q6_K
+  mv "$UNCENSORED_MODEL_PATH.partial" "$UNCENSORED_MODEL_PATH"
+  rm "$UNCENSORED_BF16_PATH"
+fi
+
+if ! verify "$UNCENSORED_MMPROJ_SHA256" "$UNCENSORED_MMPROJ_PATH"; then
+  "$converter_python" "$converter" \
+    "$UNCENSORED_SOURCE_DIR" \
+    --outfile "$UNCENSORED_MMPROJ_PATH.partial" \
+    --outtype f16 \
+    --mmproj \
+    --use-temp-file
+  mv "$UNCENSORED_MMPROJ_PATH.partial" "$UNCENSORED_MMPROJ_PATH"
+fi
+
+if ! verify "$UNCENSORED_MTP_SHA256" "$UNCENSORED_MTP_PATH"; then
+  "$converter_python" "$converter" \
+    "$UNCENSORED_SOURCE_DIR" \
+    --outfile "$UNCENSORED_MTP_PATH.partial" \
+    --outtype q8_0 \
+    --fp8-as-q8 \
+    --mtp \
+    --use-temp-file
+  mv "$UNCENSORED_MTP_PATH.partial" "$UNCENSORED_MTP_PATH"
+fi
+
+shasum -a 256 "$UNCENSORED_MODEL_PATH" "$UNCENSORED_MMPROJ_PATH" "$UNCENSORED_MTP_PATH"

@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+if command -v podman >/dev/null 2>&1; then
+  WEBUI_PORT=$WEBUI_PORT podman compose --env-file "$ENV_FILE" -f "$ROOT/compose.yaml" down
+fi
+
+service="gui/$(id -u)/$SERVER_LABEL"
+if launchctl print "$service" >/dev/null 2>&1; then
+  launchctl bootout "$service"
+fi

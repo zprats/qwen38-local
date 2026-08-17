@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+if ! command -v podman >/dev/null 2>&1; then
+  printf 'Podman is required for the browser UI.\n' >&2
+  exit 1
+fi
+
+"$ROOT/bin/start-model" >/dev/null
+
+WEBUI_PORT=$WEBUI_PORT podman compose --env-file "$ROOT/.env" -f "$ROOT/compose.yaml" up -d
+
+attempts=0
+until curl --fail --silent --max-time 2 "http://127.0.0.1:$WEBUI_PORT/health" >/dev/null 2>&1; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 180 ]; then
+    podman logs --tail 80 qwen38-webui
+    exit 1
+  fi
+  sleep 1
+done
+
+printf 'Qwen3.8-27B is ready at http://localhost:%s\n' "$WEBUI_PORT"

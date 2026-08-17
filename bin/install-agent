@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+DESTINATION=${PNPM_HOME:-$HOME/Library/pnpm}
+
+mkdir -p "$DESTINATION"
+ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local"
+ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-plan"
+ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-incident"
+ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-uncensored"
+
+printf 'Installed qwen-local, qwen-local-plan, qwen-local-incident, and qwen-local-uncensored in %s\n' "$DESTINATION"

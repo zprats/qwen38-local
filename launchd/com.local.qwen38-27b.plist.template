@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.local.qwen38-27b</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__ROOT__/runtime/llama-b10434/llama-server</string>
+    <string>--models-preset</string>
+    <string>__MODELS_PRESET__</string>
+    <string>--models-max</string>
+    <string>1</string>
+    <string>--api-key</string>
+    <string>__API_KEY__</string>
+    <string>--cors-origins</string>
+    <string>localhost</string>
+    <string>--host</string>
+    <string>127.0.0.1</string>
+    <string>--port</string>
+    <string>8001</string>
+    <string>--ctx-size</string>
+    <string>131072</string>
+    <string>--n-gpu-layers</string>
+    <string>99</string>
+    <string>--threads</string>
+    <string>12</string>
+    <string>--threads-batch</string>
+    <string>12</string>
+    <string>--flash-attn</string>
+    <string>on</string>
+    <string>--cache-type-k</string>
+    <string>q8_0</string>
+    <string>--cache-type-v</string>
+    <string>q8_0</string>
+    <string>--parallel</string>
+    <string>1</string>
+    <string>--jinja</string>
+    <string>--reasoning-format</string>
+    <string>deepseek</string>
+    <string>--reasoning-preserve</string>
+    <string>--image-min-tokens</string>
+    <string>1024</string>
+    <string>--metrics</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__ROOT__/runtime/llama-b10434</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ProcessType</key>
+  <string>Interactive</string>
+  <key>StandardOutPath</key>
+  <string>__ROOT__/logs/llama-server.log</string>
+  <key>StandardErrorPath</key>
+  <string>__ROOT__/logs/llama-server.log</string>
+</dict>
+</plist>

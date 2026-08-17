@@ -1,0 +1,111 @@
+#!/bin/sh
+set -eu
+
+SCRIPT=$0
+case "$SCRIPT" in
+  */*) ;;
+  *) SCRIPT=$(command -v -- "$SCRIPT") ;;
+esac
+while [ -L "$SCRIPT" ]; do
+  DIRECTORY=$(CDPATH= cd -- "$(dirname -- "$SCRIPT")" && pwd)
+  TARGET=$(readlink "$SCRIPT")
+  case "$TARGET" in
+    /*) SCRIPT=$TARGET ;;
+    *) SCRIPT="$DIRECTORY/$TARGET" ;;
+  esac
+done
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT")/.." && pwd)
+. "$ROOT/config.sh"
+
+if [ ! -f "$ENV_FILE" ]; then
+  printf 'Run make install before using qwen-local.\n' >&2
+  exit 1
+fi
+. "$ENV_FILE"
+: "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
+
+MODE=${QWEN_LOCAL_MODE:-default}
+API_BASE_URL="http://$SERVER_HOST:$SERVER_PORT/v1"
+MODEL_ALIAS=$SERVER_ALIAS
+MODEL_PROFILE=base
+COMMAND=$(basename -- "$0")
+case "$COMMAND" in
+  qwen-local-plan) MODE=plan ;;
+  qwen-local-incident) MODE=incident ;;
+  qwen-local-uncensored)
+    MODE=research
+    MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
+    MODEL_PROFILE=research
+    ;;
+esac
+if [ "$MODE" = research ]; then
+  MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
+  MODEL_PROFILE=research
+fi
+
+model_available() {
+  curl --fail --silent --max-time 2 \
+    --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
+    "http://$SERVER_HOST:$SERVER_PORT/v1/models" |
+    grep -Fq "\"id\":\"$MODEL_ALIAS\""
+}
+
+if ! model_available; then
+  "$ROOT/bin/start-model" "$MODEL_PROFILE" >/dev/null
+fi
+
+SYSTEM_PROMPT=$(cat "$ROOT/agent/system-prompt.md")
+case "$MODE" in
+  default) ;;
+  plan) set -- --approval-mode plan "$@" ;;
+  incident)
+    SEATBELT_PROFILE=permissive-proxied
+    QWEN_SANDBOX_PROXY_COMMAND="exec node '$ROOT/agent/incident-proxy.mjs'"
+    API_BASE_URL=http://localhost:8877/v1
+    PATH="$ROOT/bin:$PATH"
+    unset NO_PROXY no_proxy
+    export PATH SEATBELT_PROFILE QWEN_SANDBOX_PROXY_COMMAND
+    SYSTEM_PROMPT="$SYSTEM_PROMPT
+
+$(cat "$ROOT/agent/incident-prompt.md")"
+    ;;
+  research)
+    if [ ! -s "$UNCENSORED_MODEL_PATH" ]; then
+      printf 'Run make install-uncensored before using the research model.\n' >&2
+      exit 1
+    fi
+    SEATBELT_PROFILE=permissive-proxied
+    QWEN_SANDBOX_PROXY_COMMAND="exec node '$ROOT/agent/incident-proxy.mjs'"
+    API_BASE_URL=http://localhost:8877/v1
+    PATH="$ROOT/bin:$PATH"
+    unset NO_PROXY no_proxy
+    export PATH SEATBELT_PROFILE QWEN_SANDBOX_PROXY_COMMAND
+    SYSTEM_PROMPT="$SYSTEM_PROMPT
+
+$(cat "$ROOT/agent/research-prompt.md")"
+    ;;
+  *)
+    printf 'Unknown QWEN_LOCAL_MODE: %s\n' "$MODE" >&2
+    exit 1
+    ;;
+esac
+
+LOCAL_QWEN_BASE_URL=$API_BASE_URL
+OPENAI_API_KEY=$LOCAL_QWEN_API_KEY
+OPENAI_BASE_URL=$API_BASE_URL
+QWEN_CODE_SYSTEM_SETTINGS_PATH="$ROOT/agent/settings.json"
+QWEN_SANDBOX=sandbox-exec
+QWEN_USAGE_STATISTICS_ENABLED=false
+QWEN_TELEMETRY_ENABLED=false
+OTEL_SDK_DISABLED=true
+export LOCAL_QWEN_API_KEY LOCAL_QWEN_BASE_URL OPENAI_API_KEY OPENAI_BASE_URL
+export QWEN_CODE_SYSTEM_SETTINGS_PATH QWEN_SANDBOX QWEN_USAGE_STATISTICS_ENABLED
+export QWEN_TELEMETRY_ENABLED OTEL_SDK_DISABLED
+
+exec "$ROOT/node_modules/.bin/qwen" \
+  --auth-type openai \
+  --model "$MODEL_ALIAS" \
+  --openai-base-url "$OPENAI_BASE_URL" \
+  --append-system-prompt "$SYSTEM_PROMPT" \
+  "$@"

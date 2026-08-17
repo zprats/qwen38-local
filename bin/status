@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+[ ! -f "$ENV_FILE" ] || . "$ENV_FILE"
+
+if curl --fail --silent --max-time 2 "http://$SERVER_HOST:$SERVER_PORT/health" >/dev/null 2>&1; then
+  printf 'Model server: ready\n'
+  if command -v jq >/dev/null 2>&1 && [ -n "${LOCAL_QWEN_API_KEY:-}" ]; then
+    curl --fail --silent --max-time 2 \
+      --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
+      "http://$SERVER_HOST:$SERVER_PORT/v1/models" |
+      jq -r '.data[] | "  \(.id): \(.status.value)"'
+  fi
+else
+  printf 'Model server: stopped\n'
+fi
+
+if ! command -v podman >/dev/null 2>&1; then
+  printf 'Web UI: Podman not installed\n'
+elif curl --fail --silent --max-time 2 "http://127.0.0.1:$WEBUI_PORT/health" >/dev/null 2>&1; then
+  printf 'Web UI: ready at http://localhost:%s\n' "$WEBUI_PORT"
+  podman ps --filter name=qwen38-webui --format 'Container: {{.Status}}'
+else
+  printf 'Web UI: stopped\n'
+fi

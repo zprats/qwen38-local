@@ -1,0 +1,78 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+profile=${1:-base}
+case "$profile" in
+  base)
+    preset=$MODELS_PRESET
+    requested_alias=$SERVER_ALIAS
+    ;;
+  research)
+    preset=$RESEARCH_MODELS_PRESET
+    requested_alias=$UNCENSORED_SERVER_ALIAS
+    ;;
+  *)
+    printf 'Unknown model profile: %s\n' "$profile" >&2
+    exit 1
+    ;;
+esac
+
+"$ROOT/bin/install"
+. "$ENV_FILE"
+
+if [ "$profile" = research ]; then
+  for artifact in "$UNCENSORED_MODEL_PATH" "$UNCENSORED_MMPROJ_PATH" "$UNCENSORED_MTP_PATH"; do
+    if [ ! -s "$artifact" ]; then
+      printf 'Run make install-uncensored before starting the research profile.\n' >&2
+      exit 1
+    fi
+  done
+fi
+
+"$ROOT/bin/render-service" "$preset"
+
+server_ready() {
+  curl --fail --silent --max-time 2 "http://$SERVER_HOST:$SERVER_PORT/health" >/dev/null 2>&1
+}
+
+model_available() {
+  curl --fail --silent --max-time 2 \
+    --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
+    "http://$SERVER_HOST:$SERVER_PORT/v1/models" |
+    grep -Fq "\"id\":\"$requested_alias\""
+}
+
+if server_ready && model_available; then
+  printf 'Model server is ready at http://%s:%s\n' "$SERVER_HOST" "$SERVER_PORT"
+  exit 0
+fi
+
+service="gui/$(id -u)/$SERVER_LABEL"
+if launchctl print "$service" >/dev/null 2>&1; then
+  launchctl bootout "$service"
+fi
+
+attempts=0
+until launchctl bootstrap "gui/$(id -u)" "$SERVER_PLIST" >/dev/null 2>&1; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 30 ]; then
+    launchctl bootstrap "gui/$(id -u)" "$SERVER_PLIST"
+    exit 1
+  fi
+  sleep 1
+done
+
+attempts=0
+until server_ready && model_available; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 180 ]; then
+    tail -n 80 "$SERVER_LOG"
+    exit 1
+  fi
+  sleep 1
+done
+
+printf 'Model server is ready at http://%s:%s\n' "$SERVER_HOST" "$SERVER_PORT"

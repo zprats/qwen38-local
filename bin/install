@@ -1,0 +1,58 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+. "$ROOT/config.sh"
+
+mkdir -p "$ROOT/logs" "$ROOT/models" "$ROOT/runtime/downloads"
+
+if ! command -v pnpm >/dev/null 2>&1 || [ "$(pnpm --version)" != 10.30.2 ]; then
+  printf 'pnpm 10.30.2 is required.\n' >&2
+  exit 1
+fi
+
+(cd "$ROOT" && NO_UPDATE_NOTIFIER=1 pnpm install --frozen-lockfile --ignore-scripts)
+
+umask 077
+touch "$ENV_FILE"
+if ! grep -q '^WEBUI_SECRET_KEY=' "$ENV_FILE"; then
+  printf 'WEBUI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >>"$ENV_FILE"
+fi
+if ! grep -q '^LOCAL_QWEN_API_KEY=' "$ENV_FILE"; then
+  printf 'LOCAL_QWEN_API_KEY=%s\n' "$(openssl rand -hex 32)" >>"$ENV_FILE"
+fi
+chmod 600 "$ENV_FILE"
+
+verify() {
+  expected=$1
+  file=$2
+  [ -f "$file" ] && printf '%s  %s\n' "$expected" "$file" | shasum -a 256 -c - >/dev/null 2>&1
+}
+
+download() {
+  url=$1
+  destination=$2
+  expected=$3
+
+  if verify "$expected" "$destination"; then
+    return
+  fi
+
+  partial="$destination.partial"
+  curl --fail --location --retry 5 --retry-all-errors --continue-at - --output "$partial" "$url"
+  printf '%s  %s\n' "$expected" "$partial" | shasum -a 256 -c -
+  mv "$partial" "$destination"
+}
+
+archive="$ROOT/runtime/downloads/$LLAMA_CPP_ARCHIVE"
+download "$LLAMA_CPP_URL" "$archive" "$LLAMA_CPP_SHA256"
+
+if [ ! -x "$LLAMA_CPP_DIR/llama-server" ]; then
+  rm -rf "$LLAMA_CPP_DIR"
+  tar -xzf "$archive" -C "$ROOT/runtime"
+fi
+
+download "$MODEL_URL" "$MODEL_PATH" "$MODEL_SHA256"
+download "$MMPROJ_URL" "$MMPROJ_PATH" "$MMPROJ_SHA256"
+
+printf 'Installed llama.cpp %s and %s.\n' "$LLAMA_CPP_VERSION" "$MODEL_FILENAME"
