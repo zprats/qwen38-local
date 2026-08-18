@@ -8,15 +8,15 @@ CONTEXT_PROFILE=${2:-128k}
 case "$BASE_URL" in
   https://*-8000.proxy.runpod.net) ;;
   *)
-    printf 'Usage: bin/configure-runpod https://POD_ID-8000.proxy.runpod.net [128k|262k]\n' >&2
+    printf 'Usage: bin/configure-runpod https://POD_ID-8000.proxy.runpod.net [128k|262k|1m]\n' >&2
     exit 2
     ;;
 esac
 
 case "$CONTEXT_PROFILE" in
-  128k|262k) ;;
+  128k|262k|1m) ;;
   *)
-    printf 'Context profile must be 128k or 262k.\n' >&2
+    printf 'Context profile must be 128k, 262k, or 1m.\n' >&2
     exit 2
     ;;
 esac

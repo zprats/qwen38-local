@@ -9,7 +9,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 [ "$(plutil -extract privacy.usageStatisticsEnabled raw "$ROOT/agent/settings.json")" = false ]
 [ "$(plutil -extract telemetry.enabled raw "$ROOT/agent/settings.json")" = false ]
 [ "$(plutil -extract outboundCorrelation.propagateTraceContext raw "$ROOT/agent/settings.json")" = false ]
-for SETTINGS_PATH in "$ROOT/agent/settings-runpod.json" "$ROOT/agent/settings-runpod-262k.json"; do
+for SETTINGS_PATH in "$ROOT/agent/settings-runpod.json" "$ROOT/agent/settings-runpod-262k.json" "$ROOT/agent/settings-runpod-1m.json"; do
   [ "$(plutil -extract privacy.usageStatisticsEnabled raw "$SETTINGS_PATH")" = false ]
   [ "$(plutil -extract telemetry.enabled raw "$SETTINGS_PATH")" = false ]
   [ "$(plutil -extract outboundCorrelation.propagateTraceContext raw "$SETTINGS_PATH")" = false ]

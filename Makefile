@@ -1,6 +1,6 @@
 RUNPOD_PROFILE ?= 128k
 
-.PHONY: install install-uncensored install-agent install-runpod-client create-runpod-template start start-model start-research stop status security-check logs model-logs agent agent-plan agent-incident agent-research agent-runpod agent-runpod-unrestricted
+.PHONY: install install-uncensored install-agent install-runpod-client create-runpod-template create-runpod-template-1m start start-model start-research stop status security-check logs model-logs agent agent-plan agent-incident agent-research agent-runpod agent-runpod-unrestricted
 
 install:
 	./bin/install
@@ -16,6 +16,9 @@ install-runpod-client:
 
 create-runpod-template:
 	./bin/create-runpod-template $(RUNPOD_PROFILE)
+
+create-runpod-template-1m:
+	./bin/create-runpod-template 1m
 
 start:
 	./bin/start

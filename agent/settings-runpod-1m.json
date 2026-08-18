@@ -1,0 +1,82 @@
+{
+  "env": {
+    "LOCAL_QWEN_BASE_URL": "http://localhost:8877/v1"
+  },
+  "modelProviders": {
+    "openai": [
+      {
+        "id": "qwen3.8-27b-uncensored-research-local",
+        "name": "Qwen3.8-27B Uncensored RunPod FP8 1M",
+        "envKey": "LOCAL_QWEN_API_KEY",
+        "baseUrl": "$LOCAL_QWEN_BASE_URL",
+        "generationConfig": {
+          "timeout": 1800000,
+          "maxRetries": 1,
+          "contextWindowSize": 1000000,
+          "samplingParams": {
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "max_tokens": 16384
+          }
+        }
+      }
+    ]
+  },
+  "security": {
+    "auth": {
+      "selectedType": "openai",
+      "enforcedType": "openai"
+    }
+  },
+  "model": {
+    "name": "qwen3.8-27b-uncensored-research-local",
+    "maxSessionTurns": -1,
+    "maxWallTimeSeconds": -1,
+    "maxToolCalls": -1,
+    "maxSubagentDepth": 5,
+    "skipLoopDetection": true
+  },
+  "context": {
+    "autoCompactThreshold": 0.95
+  },
+  "tools": {
+    "sandbox": "sandbox-exec",
+    "approvalMode": "default",
+    "shell": {
+      "enableInteractiveShell": false,
+      "pager": "",
+      "showColor": false
+    },
+    "computerUse": {
+      "enabled": false
+    },
+    "toolSearch": {
+      "enabled": true,
+      "threshold": 0
+    }
+  },
+  "general": {
+    "enableAutoUpdate": false,
+    "gitCoAuthor": {
+      "commit": false,
+      "pr": false
+    }
+  },
+  "privacy": {
+    "usageStatisticsEnabled": false
+  },
+  "telemetry": {
+    "enabled": false
+  },
+  "outboundCorrelation": {
+    "propagateTraceContext": false
+  },
+  "memory": {
+    "enableManagedAutoMemory": false,
+    "enableManagedAutoDream": false,
+    "enableAutoSkill": false,
+    "enableTeamMemory": false,
+    "enableTeamMemorySync": false
+  },
+  "$version": 4
+}

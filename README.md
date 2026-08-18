@@ -121,7 +121,7 @@ The uncensored variant is abliterated and does not provide meaningful refusal be
 
 ## RunPod FP8 deployment
 
-The RunPod path uses the publisher's original gated block-FP8 checkpoint instead of the Mac GGUF conversion. The Pod runs pinned vLLM with MTP speculative decoding. The default profile has a 131,072-token context and an optional 262,144-token profile preserves the model's native window. Qwen Code and repository tools remain on the local machine, while inference requests cross the network to RunPod over HTTPS.
+The RunPod path uses the publisher's original gated block-FP8 checkpoint instead of the Mac GGUF conversion. The Pod runs pinned vLLM with MTP speculative decoding. The default profile has a 131,072-token context, the 262,144-token profile preserves the model's native window, and the optional 1,000,000-token profile uses vLLM's explicit long-length extrapolation override. Qwen Code and repository tools remain on the local machine, while inference requests cross the network to RunPod over HTTPS.
 
 ```sh
 make install-runpod-client
@@ -142,6 +142,15 @@ For the native context window, create and configure the matching 262K profile on
 make create-runpod-template RUNPOD_PROFILE=262k
 bin/configure-runpod https://POD_ID-8000.proxy.runpod.net 262k
 ```
+
+The experimental 1M profile configures the server and Qwen Code client together and compacts at 95% of the configured window:
+
+```sh
+make create-runpod-template-1m
+bin/configure-runpod https://POD_ID-8000.proxy.runpod.net 1m
+```
+
+The checkpoint declares a native 262,144-token limit. The 1M profile is extrapolated, requires an 80 GB GPU, and must be startup-tested on the allocated host before use. Its FP8 KV cache is estimated at approximately 30.5 GiB at the full window, before model and runtime memory. Qwen Code targets compaction at 950,000 tokens, while retaining its separate summary and safety buffers.
 
 An A40 is the approximate $0.50/hour 128K profile but is not expected to sustain 60 tok/s. The 262K profile requires an A100 80 GB or H100 80 GB. An H100 SXM is the reliable 60+ tok/s target on shorter generations at roughly $3/hour. Current GPU guidance, the pinned private templates, secret setup, benchmarking, and security boundaries are documented in [runpod/README.md](runpod/README.md).
 

@@ -67,8 +67,9 @@ if [ "$MODE" = runpod-research ] || [ "$MODE" = runpod-unrestricted ]; then
   case "${QWEN_RUNPOD_CONTEXT_PROFILE:-128k}" in
     128k) SETTINGS_PATH="$ROOT/agent/settings-runpod.json" ;;
     262k) SETTINGS_PATH="$ROOT/agent/settings-runpod-262k.json" ;;
+    1m) SETTINGS_PATH="$ROOT/agent/settings-runpod-1m.json" ;;
     *)
-      printf 'QWEN_RUNPOD_CONTEXT_PROFILE must be 128k or 262k.\n' >&2
+      printf 'QWEN_RUNPOD_CONTEXT_PROFILE must be 128k, 262k, or 1m.\n' >&2
       exit 2
       ;;
   esac
