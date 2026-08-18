@@ -10,5 +10,6 @@ ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-plan"
 ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-incident"
 ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-local-uncensored"
 ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-runpod-uncensored"
+ln -sfn "$ROOT/bin/qwen-agent" "$DESTINATION/qwen-runpod-unrestricted"
 
-printf 'Installed qwen-local, qwen-local-plan, qwen-local-incident, qwen-local-uncensored, and qwen-runpod-uncensored in %s\n' "$DESTINATION"
+printf 'Installed qwen-local, qwen-local-plan, qwen-local-incident, qwen-local-uncensored, qwen-runpod-uncensored, and qwen-runpod-unrestricted in %s\n' "$DESTINATION"

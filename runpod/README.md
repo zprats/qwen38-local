@@ -75,6 +75,12 @@ cd /path/to/repository
 qwen-runpod-uncensored
 ```
 
+For explicitly authorized testing that requires direct public-network access, use the separate opt-in launcher. It runs repository tools directly on the local host with normal approval prompts and leaves the restricted launcher unchanged:
+
+```sh
+qwen-runpod-unrestricted
+```
+
 Measure end-to-end speed:
 
 ```sh

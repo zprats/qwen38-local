@@ -96,6 +96,7 @@ The installed commands are:
 | `qwen-local-incident` | Incident workflow with tool network access disabled |
 | `qwen-local-uncensored` | Uncensored research model with full repository tools, approval prompts, and external network access disabled |
 | `qwen-runpod-uncensored` | Local repository tools with uncensored FP8 inference on an authenticated RunPod |
+| `qwen-runpod-unrestricted` | Opt-in RunPod inference with unsandboxed local tools, normal approval prompts, and unrestricted host networking |
 
 The agent uses a 128K server context and caps each model response at 16K tokens. Session turns, wall time, and aggregate tool calls are not artificially capped. Subagents are available to depth five, desktop automation is disabled, and background managed-memory calls are disabled because the server has one inference slot.
 
@@ -127,6 +128,12 @@ make install-runpod-client
 bin/configure-runpod https://POD_ID-8000.proxy.runpod.net
 cd /path/to/your/repository
 qwen-runpod-uncensored
+```
+
+Use the separate unrestricted command only for explicitly authorized targets. It disables the macOS tool sandbox, so shell commands execute directly on the host and can reach public networks:
+
+```sh
+qwen-runpod-unrestricted
 ```
 
 For the native context window, create and configure the matching 262K profile on an 80 GB GPU:
