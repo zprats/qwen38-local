@@ -1,6 +1,4 @@
-RUNPOD_PROFILE ?= 128k
-
-.PHONY: install install-uncensored install-agent install-runpod-client create-runpod-template create-runpod-template-1m start start-model start-research stop status security-check logs model-logs agent agent-plan agent-incident agent-research agent-runpod agent-runpod-unrestricted
+.PHONY: install install-uncensored install-agent start start-model start-research stop status security-check logs model-logs agent agent-plan agent-incident agent-research
 
 install:
 	./bin/install
@@ -10,15 +8,6 @@ install-uncensored: install
 
 install-agent:
 	./bin/install-agent
-
-install-runpod-client:
-	./bin/install-runpod-client
-
-create-runpod-template:
-	./bin/create-runpod-template $(RUNPOD_PROFILE)
-
-create-runpod-template-1m:
-	./bin/create-runpod-template 1m
 
 start:
 	./bin/start
@@ -55,9 +44,3 @@ agent-incident:
 
 agent-research:
 	QWEN_LOCAL_MODE=research ./bin/qwen-agent
-
-agent-runpod:
-	QWEN_LOCAL_MODE=runpod-research ./bin/qwen-agent
-
-agent-runpod-unrestricted:
-	QWEN_LOCAL_MODE=runpod-unrestricted ./bin/qwen-agent

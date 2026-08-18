@@ -23,9 +23,9 @@ API_BASE_URL="http://$SERVER_HOST:$SERVER_PORT/v1"
 MODEL_ALIAS=$SERVER_ALIAS
 MODEL_PROFILE=base
 SETTINGS_PATH="$ROOT/agent/settings.json"
-ACTIVE_ENV_FILE=$ENV_FILE
 COMMAND=$(basename -- "$0")
 case "$COMMAND" in
+  qwen-agent|qwen-local) ;;
   qwen-local-plan) MODE=plan ;;
   qwen-local-incident) MODE=incident ;;
   qwen-local-uncensored)
@@ -33,47 +33,22 @@ case "$COMMAND" in
     MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
     MODEL_PROFILE=research
     ;;
-  qwen-runpod-uncensored)
-    MODE=runpod-research
-    MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
-    ;;
-  qwen-runpod-unrestricted)
-    MODE=runpod-unrestricted
-    MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
+  *)
+    printf 'Unknown Qwen launcher command: %s\n' "$COMMAND" >&2
+    exit 1
     ;;
 esac
 if [ "$MODE" = research ]; then
   MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
   MODEL_PROFILE=research
 fi
-if [ "$MODE" = runpod-research ] || [ "$MODE" = runpod-unrestricted ]; then
-  ACTIVE_ENV_FILE="$ROOT/.env.runpod"
-  MODEL_ALIAS=$UNCENSORED_SERVER_ALIAS
-  SETTINGS_PATH="$ROOT/agent/settings-runpod.json"
-fi
 
-if [ ! -f "$ACTIVE_ENV_FILE" ]; then
-  if [ "$MODE" = runpod-research ] || [ "$MODE" = runpod-unrestricted ]; then
-    printf 'Run make install-runpod-client and bin/configure-runpod before using qwen-runpod-uncensored.\n' >&2
-  else
-    printf 'Run make install before using qwen-local.\n' >&2
-  fi
+if [ ! -f "$ENV_FILE" ]; then
+  printf 'Run make install before using qwen-local.\n' >&2
   exit 1
 fi
-. "$ACTIVE_ENV_FILE"
+. "$ENV_FILE"
 : "${LOCAL_QWEN_API_KEY:?LOCAL_QWEN_API_KEY must be set}"
-
-if [ "$MODE" = runpod-research ] || [ "$MODE" = runpod-unrestricted ]; then
-  case "${QWEN_RUNPOD_CONTEXT_PROFILE:-128k}" in
-    128k) SETTINGS_PATH="$ROOT/agent/settings-runpod.json" ;;
-    262k) SETTINGS_PATH="$ROOT/agent/settings-runpod-262k.json" ;;
-    1m) SETTINGS_PATH="$ROOT/agent/settings-runpod-1m.json" ;;
-    *)
-      printf 'QWEN_RUNPOD_CONTEXT_PROFILE must be 128k, 262k, or 1m.\n' >&2
-      exit 2
-      ;;
-  esac
-fi
 
 EXTRA_SYSTEM_PROMPT=
 if [ -n "${QWEN_EXTRA_SYSTEM_PROMPT_FILE:-}" ]; then
@@ -125,7 +100,7 @@ model_available() {
     grep -Fq "\"id\":\"$MODEL_ALIAS\""
 }
 
-if [ "$MODE" != runpod-research ] && [ "$MODE" != runpod-unrestricted ] && ! model_available; then
+if ! model_available; then
   "$ROOT/bin/start-model" "$MODEL_PROFILE" >/dev/null
 fi
 
@@ -159,28 +134,6 @@ $(cat "$ROOT/agent/incident-prompt.md")"
 
 $(cat "$ROOT/agent/research-prompt.md")"
     ;;
-  runpod-research)
-    : "${QWEN_RUNPOD_BASE_URL:?QWEN_RUNPOD_BASE_URL must be set}"
-    SEATBELT_PROFILE=permissive-proxied
-    QWEN_SANDBOX_PROXY_COMMAND="exec node '$ROOT/agent/runpod-proxy.mjs'"
-    API_BASE_URL=http://localhost:8877/v1
-    PATH="$ROOT/bin:$PATH"
-    unset NO_PROXY no_proxy
-    export PATH SEATBELT_PROFILE QWEN_SANDBOX_PROXY_COMMAND QWEN_RUNPOD_BASE_URL
-    SYSTEM_PROMPT="$SYSTEM_PROMPT
-
-$(cat "$ROOT/agent/runpod-research-prompt.md")"
-    ;;
-  runpod-unrestricted)
-    : "${QWEN_RUNPOD_BASE_URL:?QWEN_RUNPOD_BASE_URL must be set}"
-    API_BASE_URL="$QWEN_RUNPOD_BASE_URL/v1"
-    PATH="$ROOT/bin:$PATH"
-    unset QWEN_SANDBOX_PROXY_COMMAND SEATBELT_PROFILE
-    export PATH QWEN_RUNPOD_BASE_URL
-    SYSTEM_PROMPT="$SYSTEM_PROMPT
-
-$(cat "$ROOT/agent/runpod-unrestricted-prompt.md")"
-    ;;
   *)
     printf 'Unknown QWEN_LOCAL_MODE: %s\n' "$MODE" >&2
     exit 1
@@ -196,11 +149,7 @@ LOCAL_QWEN_BASE_URL=$API_BASE_URL
 OPENAI_API_KEY=$LOCAL_QWEN_API_KEY
 OPENAI_BASE_URL=$API_BASE_URL
 QWEN_CODE_SYSTEM_SETTINGS_PATH=$SETTINGS_PATH
-if [ "$MODE" = runpod-unrestricted ]; then
-  QWEN_SANDBOX=false
-else
-  QWEN_SANDBOX=sandbox-exec
-fi
+QWEN_SANDBOX=sandbox-exec
 QWEN_USAGE_STATISTICS_ENABLED=false
 QWEN_TELEMETRY_ENABLED=false
 QWEN_STREAM_IDLE_TIMEOUT_MS=0

@@ -9,17 +9,11 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 [ "$(plutil -extract privacy.usageStatisticsEnabled raw "$ROOT/agent/settings.json")" = false ]
 [ "$(plutil -extract telemetry.enabled raw "$ROOT/agent/settings.json")" = false ]
 [ "$(plutil -extract outboundCorrelation.propagateTraceContext raw "$ROOT/agent/settings.json")" = false ]
-for SETTINGS_PATH in "$ROOT/agent/settings-runpod.json" "$ROOT/agent/settings-runpod-262k.json" "$ROOT/agent/settings-runpod-1m.json"; do
-  [ "$(plutil -extract privacy.usageStatisticsEnabled raw "$SETTINGS_PATH")" = false ]
-  [ "$(plutil -extract telemetry.enabled raw "$SETTINGS_PATH")" = false ]
-  [ "$(plutil -extract outboundCorrelation.propagateTraceContext raw "$SETTINGS_PATH")" = false ]
-done
 grep -q '^QWEN_USAGE_STATISTICS_ENABLED=false$' "$ROOT/bin/qwen-agent"
 grep -q '^QWEN_TELEMETRY_ENABLED=false$' "$ROOT/bin/qwen-agent"
 grep -q '^QWEN_STREAM_IDLE_TIMEOUT_MS=0$' "$ROOT/bin/qwen-agent"
 grep -q '^OTEL_SDK_DISABLED=true$' "$ROOT/bin/qwen-agent"
-grep -q 'QWEN_SANDBOX=false' "$ROOT/bin/qwen-agent"
-grep -q 'qwen-runpod-unrestricted' "$ROOT/bin/install-agent"
+grep -q '^QWEN_SANDBOX=sandbox-exec$' "$ROOT/bin/qwen-agent"
 grep -q '127.0.0.1:${WEBUI_PORT:-2501}:8080' "$ROOT/compose.yaml"
 grep -q 'ANONYMIZED_TELEMETRY: "false"' "$ROOT/compose.yaml"
 grep -q 'OFFLINE_MODE: "true"' "$ROOT/compose.yaml"
