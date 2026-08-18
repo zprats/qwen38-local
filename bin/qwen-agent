@@ -75,6 +75,46 @@ if [ "$MODE" = runpod-research ] || [ "$MODE" = runpod-unrestricted ]; then
   esac
 fi
 
+EXTRA_SYSTEM_PROMPT=
+if [ -n "${QWEN_EXTRA_SYSTEM_PROMPT_FILE:-}" ]; then
+  case "$QWEN_EXTRA_SYSTEM_PROMPT_FILE" in
+    /*) ;;
+    *)
+      printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must be an absolute path.\n' >&2
+      exit 2
+      ;;
+  esac
+  if [ -L "$QWEN_EXTRA_SYSTEM_PROMPT_FILE" ] || [ ! -f "$QWEN_EXTRA_SYSTEM_PROMPT_FILE" ] || [ ! -r "$QWEN_EXTRA_SYSTEM_PROMPT_FILE" ]; then
+    printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must be a readable regular file and not a symbolic link.\n' >&2
+    exit 2
+  fi
+  PROMPT_BYTES=$(LC_ALL=C wc -c <"$QWEN_EXTRA_SYSTEM_PROMPT_FILE" | tr -d '[:space:]')
+  case "$PROMPT_BYTES" in
+    ''|*[!0-9]*)
+      printf 'Unable to determine QWEN_EXTRA_SYSTEM_PROMPT_FILE size.\n' >&2
+      exit 2
+      ;;
+  esac
+  if [ "$PROMPT_BYTES" -eq 0 ] || [ "$PROMPT_BYTES" -gt 524288 ]; then
+    printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must contain 1 to 524288 bytes.\n' >&2
+    exit 2
+  fi
+  PROMPT_TEXT_BYTES=$(LC_ALL=C tr -d '\000' <"$QWEN_EXTRA_SYSTEM_PROMPT_FILE" | wc -c | tr -d '[:space:]')
+  if [ "$PROMPT_TEXT_BYTES" != "$PROMPT_BYTES" ]; then
+    printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must not contain NUL bytes.\n' >&2
+    exit 2
+  fi
+  if ! iconv -f UTF-8 -t UTF-8 "$QWEN_EXTRA_SYSTEM_PROMPT_FILE" >/dev/null 2>&1; then
+    printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must contain valid UTF-8.\n' >&2
+    exit 2
+  fi
+  EXTRA_SYSTEM_PROMPT=$(cat "$QWEN_EXTRA_SYSTEM_PROMPT_FILE")
+  if [ -z "$EXTRA_SYSTEM_PROMPT" ]; then
+    printf 'QWEN_EXTRA_SYSTEM_PROMPT_FILE must contain text.\n' >&2
+    exit 2
+  fi
+fi
+
 model_available() {
   curl --fail --silent --max-time 2 \
     --header "Authorization: Bearer $LOCAL_QWEN_API_KEY" \
@@ -146,6 +186,11 @@ $(cat "$ROOT/agent/runpod-unrestricted-prompt.md")"
     exit 1
     ;;
 esac
+if [ -n "$EXTRA_SYSTEM_PROMPT" ]; then
+  SYSTEM_PROMPT="$SYSTEM_PROMPT
+
+$EXTRA_SYSTEM_PROMPT"
+fi
 
 LOCAL_QWEN_BASE_URL=$API_BASE_URL
 OPENAI_API_KEY=$LOCAL_QWEN_API_KEY

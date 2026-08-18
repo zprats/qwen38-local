@@ -104,6 +104,18 @@ Do not use `--yolo` against production repositories or during incident validatio
 
 This supplies the tool harness found in Codex and Claude Code, but it does not make a local quantized 27B model equally reliable on long autonomous changes. Keep changes scoped, inspect diffs, and require test evidence before accepting its conclusion.
 
+## Additional system prompt
+
+Every launcher can append an external instruction file without storing that content in this repository:
+
+```sh
+QWEN_EXTRA_SYSTEM_PROMPT_FILE=/absolute/path/to/instructions.md qwen-runpod-uncensored
+```
+
+The launcher accepts a readable, non-symlink regular file containing 1 to 524,288 bytes of valid UTF-8 without NUL bytes. The path must be absolute. Its content is appended after the selected operating-mode instructions and sent to the configured model on every request in the session.
+
+Keep confidential instructions outside this public repository. They remain visible to the model provider, Qwen Code session history, and local process inspection while the launcher is running. Do not use a prompt file as a security boundary; tool approvals, sandboxing, and network controls remain authoritative.
+
 ## Optional gated research model
 
 This profile requires access to `orcarouter/Qwen3.8-27B-Uncensored-FP8` and an authenticated Hugging Face CLI:
